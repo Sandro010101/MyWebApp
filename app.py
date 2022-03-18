@@ -1,5 +1,5 @@
 import psycopg2
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__)
 
@@ -12,29 +12,45 @@ conn = psycopg2.connect(database=" service_db",
 cursor = conn.cursor()
 
 
-@app.route('/login/', methods=['GET'])
-def index():
+@app.route('/login/', methods=['POST', 'GET'])
+def login():
+    if request.method == 'POST':
+        if request.form.get("login"):
+            username = request.form.get('username')
+            password = request.form.get('password')
+            cursor.execute("SELECT * FROM public.users WHERE login=%s AND password=%s", (str(username), str(password)))
+            records = list(cursor.fetchall())
+
+            return render_template('account.html', full_name=records[0][1])
+        elif request.form.get("registration"):
+            return redirect("/registration/")
+
     return render_template('login.html')
 
 
-@app.route('/login/', methods=['POST'])
-def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
+@app.route('/registration/', methods=['POST', 'GET'])
+def registration():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        login = request.form.get('login')
+        password = request.form.get('password')
 
-    if len(username) == 0:
-        return render_template('error.html', error="Username пуст")
-    elif len(password) == 0:
-        return render_template('error.html', error="Password пуст")
+        if len(login) == 0:
+            return render_template('registration.html', error="login пуст")
+        elif len(password) == 0:
+            return render_template('registration.html', error="Password пуст")
+        cursor.execute(f"SELECT * FROM users WHERE login='{str(login)}'")
+        try:
+            print(list(cursor.fetchall())[0])
 
-    cursor.execute("SELECT * FROM public.users WHERE login=%s AND password=%s", (str(username), str(password)))
+            return render_template('error.html', error="Такой пользователь уже существует")
+        except:
+            cursor.execute(
+                f"INSERT INTO public.users (full_name, login, password) VALUES ('{str(name)}', '{str(login)}', '{str(password)}');")
+            conn.commit()
+            return redirect('/login/')
 
-    records = list(cursor.fetchall())  # [(1, 'Username', 'login', 'password')]
-
-    if len(records) == 0:
-        return render_template('error.html', error="User not found")
-
-    return render_template('account.html', full_name=records[0][1], login=records[0][2], password=records[0][3])
+    return render_template('registration.html')
 
 
 if __name__ == '__main__':
