@@ -18,13 +18,18 @@ def login():
         if request.form.get("login"):
             username = request.form.get('username')
             password = request.form.get('password')
+
+            if len(username) == 0:
+                return render_template('error.html', error="Username пуст")
+            elif len(password) == 0:
+                return render_template('error.html', error="Password пуст")
             cursor.execute("SELECT * FROM public.users WHERE login=%s AND password=%s", (str(username), str(password)))
             records = list(cursor.fetchall())
-
+            if len(records) == 0:
+                return render_template('error.html', error="User not found")
             return render_template('account.html', full_name=records[0][1])
         elif request.form.get("registration"):
             return redirect("/registration/")
-
     return render_template('login.html')
 
 
@@ -36,9 +41,9 @@ def registration():
         password = request.form.get('password')
 
         if len(login) == 0:
-            return render_template('registration.html', error="login пуст")
+            return render_template('error.html', error="login пуст")
         elif len(password) == 0:
-            return render_template('registration.html', error="Password пуст")
+            return render_template('error.html', error="Password пуст")
         cursor.execute(f"SELECT * FROM users WHERE login='{str(login)}'")
         try:
             print(list(cursor.fetchall())[0])
